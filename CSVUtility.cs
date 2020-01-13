@@ -3,7 +3,7 @@ using System;
 using System.Data;
 using System.Data.SqlClient;
 using System.IO;
-using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 
 
@@ -11,9 +11,10 @@ namespace CSVUtility
 {
     public static class CSVUtility
     {
-        public static void ToCSV(this DataTable dtDataTable, string strFilePath)
+        public static void ToCSV (this DataTable dtDataTable, string strFilePath)
+        //Сохраняем DataTable в CSV файл
         {
-            StreamWriter sw = new StreamWriter(strFilePath, false);
+            StreamWriter sw = new StreamWriter(strFilePath, false, Encoding.Unicode);
             //headers  
 
             //Паттерн для поиска разделителя в полях таблицы
@@ -38,6 +39,7 @@ namespace CSVUtility
                         //if (value.Contains(';'))
                         //{
                         //value = String.Format("\\{0}\\", value);
+                        //value = ANSItoUTF(value);
                         value = Regex.Replace(value, @"\n+", " ");
                         value = Regex.Replace(value, pattern, ":");
                         sw.Write(value);
@@ -49,7 +51,7 @@ namespace CSVUtility
                     }
                     else if (Convert.IsDBNull(dr[i]))
                     {
-                        sw.Write("NULL");
+                        sw.Write("");
                     }
                     if (i < dtDataTable.Columns.Count - 1)
                     {
@@ -62,9 +64,12 @@ namespace CSVUtility
         }
 
         public static DataTable GetDataTableFromCSVFile(string csv_file_path)
+        //Копируем данные из CSV в DataTable
+        
         {
+            
             Console.WriteLine(csv_file_path);
-
+            string tmpFile = CSVreformat(csv_file_path);
             //string[] lines = System.IO.File.ReadAllLines(csv_file_path);
 
             //// Display the file contents by using a foreach loop.
@@ -78,7 +83,7 @@ namespace CSVUtility
             DataTable csvData = new DataTable();
             try
             {
-                using (TextFieldParser csvReader = new TextFieldParser(csv_file_path))
+                using (TextFieldParser csvReader = new TextFieldParser(tmpFile, Encoding.GetEncoding(1251)))
                 {
                     csvReader.SetDelimiters(new string[] { "|" }); //Устанавливаем символ-разделитель
                     csvReader.HasFieldsEnclosedInQuotes = false;
@@ -104,8 +109,11 @@ namespace CSVUtility
                         }
                         csvData.Rows.Add(fieldData);
                     }
+                    csvReader.Close();
+                    File.Delete(tmpFile); //Удаляем временный файл
                 }
             }
+            
             catch (Exception ex)
             {
                 Console.WriteLine("Exception: {0}", ex);
@@ -143,8 +151,77 @@ namespace CSVUtility
             }
         }
 
+        public static string ANSItoUTF (string stringANSI)
+        //Перекодирует строку из ANSItoUTF
+        {
+            // Create two different encodings.
+            Encoding ansi = Encoding.GetEncoding(1251);
+            Encoding unicode = Encoding.UTF8;
+
+            // Perform the conversion from one encoding to the other.
+            byte[] ansiBytes = ansi.GetBytes(stringANSI); //Encoding.Convert(ansi, unicode, unicodeBytes);
+
+            // Convert the string into a byte array.
+            byte[] unicodeBytes = Encoding.Convert(ansi, unicode, ansiBytes);            
+
+            // Convert the new byte[] into a char[] and then into a string.
+            char[] unicodeChars = new char[unicode.GetCharCount(unicodeBytes, 0, unicodeBytes.Length)];
+            unicode.GetChars(unicodeBytes, 0, unicodeBytes.Length, unicodeChars, 0);
+            string unicodeString = new string(unicodeChars);
+            return unicodeString;            
+        }
+
+        public static string CSVreformat (string inCSV)
+        //Приводит CSV файл к привычному виду
+        {
+            try
+            {                
+                using (StreamReader sr = new StreamReader(inCSV, Encoding.GetEncoding(1251)) )
+                {
+                    string line;
+                    string tempFile = Path.GetTempFileName(); 
+                    using (StreamWriter sw = new StreamWriter(tempFile, false ,Encoding.UTF8) )
+                    {
+                        line = sr.ReadLine();
+                        line = Regex.Replace(line, "~", "");
+                        line = Regex.Replace(line, @"\n+", " ");                      
+                        sw.WriteLine(line);
+                        while ((line = sr.ReadLine()) != null)
+                        {
+                            line = ANSItoUTF(line);
+                            if (line.StartsWith("~"))
+                            {
+                                line = Regex.Replace(line, "~", "");
+                                line = Regex.Replace(line, @"\n+", " ");
+                                sw.WriteLine();
+                                sw.Write(line);
+                            }
+                            else
+                            {
+                                line = Regex.Replace(line, @"\n+", " ");
+                                sw.Write(line);
+                            }
+                        }
+                        sw.Close();
+                        sr.Close();
+                        //File.Replace(tempFile, inCSV, null);
+                    }
+                    return tempFile;
+                }
+                
+            }
+            catch (Exception e)
+            {
+                // Let the user know what went wrong.
+                Console.WriteLine("The file could not be read:");
+                Console.WriteLine(e.Message);
+                return null;
+            }
+        }
+    }
+
 
     }  
  
-}
+
 
