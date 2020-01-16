@@ -11,23 +11,33 @@ namespace CSVUtility
 {
     public static class CSVUtility
     {
-        public static void ToCSV (this DataTable dtDataTable, string strFilePath)
+        public static void ToCSV(this DataTable dtDataTable, string strFilePath, string header = null)
         //Сохраняем DataTable в CSV файл
         {
             StreamWriter sw = new StreamWriter(strFilePath, false, Encoding.Unicode);
-            //headers  
+            
 
             //Паттерн для поиска разделителя в полях таблицы
             string pattern = ";+";
-            
-            for (int i = 0; i < dtDataTable.Columns.Count; i++)
+
+            //Выводим заголовок на основании названия полей в DataTable
+            if (header == null)
             {
-                sw.Write(dtDataTable.Columns[i]);
-                if (i < dtDataTable.Columns.Count - 1)
+                for (int i = 0; i < dtDataTable.Columns.Count; i++)
                 {
-                    sw.Write(";");
+                    sw.Write(dtDataTable.Columns[i]);
+                    if (i < dtDataTable.Columns.Count - 1)
+                    {
+                        sw.Write(";");
+                    }
                 }
             }
+            
+            //Выводим заголовок указанный в header
+            else
+                sw.Write(@header);
+
+
             sw.Write(sw.NewLine);
             foreach (DataRow dr in dtDataTable.Rows)
             {

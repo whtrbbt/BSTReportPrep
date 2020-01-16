@@ -41,6 +41,9 @@ namespace BSTReportPrep
                     case "16":
                         ReportR16(CSVtable, outFile);
                         break;
+                    case "16P":
+                        ReportR16P(CSVtable, outFile);
+                        break;
                     default:
                         CSVUtility.CSVUtility.ToCSV(CSVtable, outFile);
                         break;
@@ -66,11 +69,16 @@ namespace BSTReportPrep
             }
         }
 
-        static void ReportR16(DataTable inTable, string fileName)
+        static void ReportR16 (DataTable inTable, string fileName)
         {
             DataTable reestr = new DataTable();
             DataColumn column;
             DataRow reestrRow;
+            string header = "#RTYPE=R16\n"
+                            +"\n"
+                            +"#AccountOperator;AccountNum;ServiceCode;ProviderCode;ChargeYear;ChargeMonth;SaldoIn;ChargeVolume;"
+                            +"Tarif;ChargeSum;RecalSum;PaySum;SaldoOut;SaldoFineIn;FineSum;PayFineSum;CorrectFineSum;SaldoFineOut;"
+                            +"LastPayDate;PayAgent;PrivChargeSum;PrivRecalSum;PrivCategory;PrivPaySum";
 
             #region Задаем структуру таблицы reestr
             //1. AccountOperator (ИНН оператора ЛС)
@@ -196,9 +204,9 @@ namespace BSTReportPrep
             //16. PayFineSum (Оплата пени в отчетном месяце)
             column = new DataColumn();
             column.DataType = System.Type.GetType("System.String");
-            column.ColumnName = "ChargeVolume";
+            column.ColumnName = "PayFineSum";
             column.AllowDBNull = false;
-            column.DefaultValue = "";
+            column.DefaultValue = "0.00";
             reestr.Columns.Add(column);
 
             //17. CorrectFineSum (Корректировка пени на конец месяца)
@@ -267,14 +275,14 @@ namespace BSTReportPrep
 
             #endregion 
 
-            Console.WriteLine("Заполняем реестр R08");
+            Console.WriteLine("Заполняем реестр R16");
             foreach (DataRow row in inTable.Rows)
             {
                 reestrRow = reestr.NewRow();
                 reestrRow["AccountNum"] = row["AccountNum"];
                 reestrRow["ChargeYear"] = row["ChargeYear"];
                 reestrRow["ChargeMonth"] = row["ChargeMonth"];
-                reestrRow["SaldoIn"] = FixSum (row["ChargeMonth"].ToString());
+                reestrRow["SaldoIn"] = FixSum (row["SaldoIn"].ToString());
                 reestrRow["ChargeVolume"] = FixSum(row["ChargeVolume"].ToString());
                 reestrRow["Tarif"] = FixSum(row["Tarif"].ToString());
                 reestrRow["ChargeSum"] = FixSum(row["ChargeSum"].ToString());
@@ -284,7 +292,7 @@ namespace BSTReportPrep
 
                 reestr.Rows.Add(reestrRow);
             }
-            CSVUtility.CSVUtility.ToCSV(reestr, fileName);
+            CSVUtility.CSVUtility.ToCSV(reestr, fileName, header);
 
             reestr.Dispose();
         }
@@ -565,6 +573,117 @@ namespace BSTReportPrep
             reestr.Dispose();
         }
 
+        static void ReportR16P (DataTable inTable, string fileName)
+        {
+            DataTable reestr = new DataTable();
+            DataColumn column;
+            DataRow reestrRow;
+
+            string header = "#RTYPE=R16P\n"
+                            + "\n"
+                            + "#AccountOperator;AccountNum;ServiceCode;ProviderCode;PaySum;PayFineSum;LastPayDate;PayAgent;PayID;SpecAccount;Comment";
+
+
+            #region Задаем структуру таблицы reestr
+            //1. AccountOperator (ИНН оператора ЛС)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "AccountOperator";
+            column.AllowDBNull = true;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+            
+            //2. AccountNum (Номер ЛС)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "AccountNum";
+            column.AllowDBNull = false;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            //3. ServiceCode (Услуга)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "ServiceCode";
+            column.AllowDBNull = false;
+            column.DefaultValue = "22";
+            reestr.Columns.Add(column);
+
+            //4. ProviderCode (ИНН поставщика услуги)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "ProviderCode";
+            column.AllowDBNull = false;
+            column.DefaultValue = "5190996259";
+            reestr.Columns.Add(column);
+
+            //5. PaySum (Сумма по взносам в фонд капитального ремонта)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "PaySum";
+            column.AllowDBNull = false;
+            column.DefaultValue = "0.00";
+            reestr.Columns.Add(column);
+
+            //6. PayFineSum (Сумма платежа по пени)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "PayFineSum";
+            column.AllowDBNull = true;
+            column.DefaultValue = "0.00";
+            reestr.Columns.Add(column);
+
+            //7. LastPayDate (Номер ЛС)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "LastPayDate";
+            column.AllowDBNull = false;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            //8. PayAgent (Код платежного агента)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "PayAgent";
+            column.AllowDBNull = false;
+            column.DefaultValue = "MR1010";
+            reestr.Columns.Add(column);
+
+            //9. Код платежа (PayID)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "PayID";
+            column.AllowDBNull = false;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            //10. Комментарии (Comment)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "Comment";
+            column.AllowDBNull = true;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            #endregion
+
+            Console.WriteLine("Заполняем реестр R16P");
+            foreach (DataRow row in inTable.Rows)
+            {
+                reestrRow = reestr.NewRow();
+                reestrRow["AccountNum"] = row["AccountNum"];
+                reestrRow["PaySum"] = FixSum(row["PaySum"].ToString());
+                reestrRow["LastPayDate"] = row["PayDate"];
+                reestrRow["PayID"] = row["PayDocId"];
+                reestrRow["Comment"] = row["ByReason"];
+
+                reestr.Rows.Add(reestrRow);
+            }
+            CSVUtility.CSVUtility.ToCSV(reestr, fileName, header);
+
+            reestr.Dispose();
+        }
+
         static string[] SplitFIO (string fio)
         {
 
@@ -600,8 +719,8 @@ namespace BSTReportPrep
         static string FixSum (string sum)
         {
             string fixSum;
-            fixSum = Regex.Replace(sum, @"^,(\d+)", "0.$1");           
-            fixSum = Regex.Replace(sum, ",", ".");
+            fixSum = Regex.Replace(sum, @"(?:^(,|\.){1})(\d+)", "0.$2");           
+            fixSum = Regex.Replace(fixSum, ",", ".");
             
             return fixSum;
         }
