@@ -1,11 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
 using System.IO;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 
 
 
@@ -17,6 +15,8 @@ namespace BSTReportPrep
         {
             string dirpathIN = @ConfigurationManager.AppSettings.Get("INdir");
             string dirpathOUT = @ConfigurationManager.AppSettings.Get("OUTdir");
+            string repType = ConfigurationManager.AppSettings.Get("REPORT_TYPE");
+
             var dirIN = new DirectoryInfo(dirpathIN); // папка с файлами
             var dirOUT = new DirectoryInfo(dirpathOUT);
             DataTable CSVtable = new DataTable();
@@ -30,8 +30,21 @@ namespace BSTReportPrep
                 CSVtable = CSVUtility.CSVUtility.GetDataTableFromCSVFile(file.FullName); //Получаем DataTable из CSV файла
                 outFile = dirpathOUT + "\\" + inFile;
                 
-                ReportR08(CSVtable, outFile);
-
+                switch (repType)
+                {
+                    case "0":
+                        CSVUtility.CSVUtility.ToCSV(CSVtable, outFile);
+                        break;
+                    case "08":
+                        ReportR08(CSVtable, outFile);
+                        break;
+                    case "16":
+                        ReportR16(CSVtable, outFile);
+                        break;
+                    default:
+                        CSVUtility.CSVUtility.ToCSV(CSVtable, outFile);
+                        break;
+                }                
                               
                 CSVtable = null;
                 //GC.Collect(1, GCCollectionMode.Forced);
@@ -53,6 +66,228 @@ namespace BSTReportPrep
             }
         }
 
+        static void ReportR16(DataTable inTable, string fileName)
+        {
+            DataTable reestr = new DataTable();
+            DataColumn column;
+            DataRow reestrRow;
+
+            #region Задаем структуру таблицы reestr
+            //1. AccountOperator (ИНН оператора ЛС)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "AccountOperator";
+            column.AllowDBNull = true;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            //2. Account Num (Номер ЛС)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "AccountNum";
+            column.AllowDBNull = false;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            //3. ServiceCode (Услуга)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "ServiceCode";
+            column.AllowDBNull = false;
+            column.DefaultValue = "22";
+            reestr.Columns.Add(column);
+
+            //4. ProviderCode (ИНН поставщика услуг)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "ProviderCode";
+            column.AllowDBNull = false;
+            column.DefaultValue = "5190996259";
+            reestr.Columns.Add(column);
+
+            //5. ChargeYear (Год отчетного периода)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "ChargeYear";
+            column.AllowDBNull = false;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            //6. ChargeMonth (Отчетный месяц)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "ChargeMonth";
+            column.AllowDBNull = false;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            //7. SaldoIn (Остаток задолженности по взносам на начало отчетного месяца)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "SaldoIn";
+            column.AllowDBNull = false;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            //8. ChargeVolume (Площадь помещения)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "ChargeVolume";
+            column.AllowDBNull = false;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            //9. Tarif (Тариф по взносам в фонд капитального ремонта)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "Tarif";
+            column.AllowDBNull = false;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            //10. ChargeSum (Сумма начисления в отчетном месяце)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "ChargeSum";
+            column.AllowDBNull = false;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            //11. RecalcSum (Сумма перерасчета в отчетном месяц)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "RecalSum";
+            column.AllowDBNull = false;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            //12. PaySum (Оплата по взносам в фонд капитального ремонта)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "PaySum";
+            column.AllowDBNull = true;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            //13. SaldoOut (Остаток задолженности (только по начислениям) на конец отчетного периода)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "SaldoOut";
+            column.AllowDBNull = false;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            //14. SaldoFineIn (Остаток задолженности по пени на начало месяца)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "SaldoFineIn";
+            column.AllowDBNull = false;
+            column.DefaultValue = "0.00";
+            reestr.Columns.Add(column);
+
+            //15. FineSum (Сумма пени, начисленная в отчетном месяце)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "FineSum";
+            column.AllowDBNull = false;
+            column.DefaultValue = "0.00";
+            reestr.Columns.Add(column);
+
+            //16. PayFineSum (Оплата пени в отчетном месяце)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "ChargeVolume";
+            column.AllowDBNull = false;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            //17. CorrectFineSum (Корректировка пени на конец месяца)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "CorrectFineSum";
+            column.AllowDBNull = false;
+            column.DefaultValue = "0.00";
+            reestr.Columns.Add(column);
+
+            //18. SaldoFineOut (Остаток задолженности по пени (только начисления) на конец месяца)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "SaldoFineOut";
+            column.AllowDBNull = false;
+            column.DefaultValue = "0.00";
+            reestr.Columns.Add(column);
+
+            //19. LastPayDate (Дата последней оплаты)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "LastPayDate";
+            column.AllowDBNull = false;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            //20. PayAgent (Код платежного агента)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "PayAgent";
+            column.AllowDBNull = true;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            //21. PrivChargeSum (Сумма начисления льготы в отчетном месяце)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "PrivChargeSum";
+            column.AllowDBNull = true;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            //22. PrivRecalSum (Сумма перерасчета льготы в отчетном месяце)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "PrivRecalSum";
+            column.AllowDBNull = true;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            //23. PrivCategory (Код категории льготника)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "PrivCategory";
+            column.AllowDBNull = true;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            //24. PrivPaySum (Оплата пени в отчетном месяце)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "PrivPaySum";
+            column.AllowDBNull = true;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            #endregion 
+
+            Console.WriteLine("Заполняем реестр R08");
+            foreach (DataRow row in inTable.Rows)
+            {
+                reestrRow = reestr.NewRow();
+                reestrRow["AccountNum"] = row["AccountNum"];
+                reestrRow["ChargeYear"] = row["ChargeYear"];
+                reestrRow["ChargeMonth"] = row["ChargeMonth"];
+                reestrRow["SaldoIn"] = FixSum (row["ChargeMonth"].ToString());
+                reestrRow["ChargeVolume"] = FixSum(row["ChargeVolume"].ToString());
+                reestrRow["Tarif"] = FixSum(row["Tarif"].ToString());
+                reestrRow["ChargeSum"] = FixSum(row["ChargeSum"].ToString());
+                reestrRow["RecalSum"] = FixSum(row["RecalSum"].ToString());
+                reestrRow["SaldoOut"] = FixSum(row["SaldoOut"].ToString());
+                reestrRow["LastPayDate"] = row["LastPayDate"].ToString();
+
+                reestr.Rows.Add(reestrRow);
+            }
+            CSVUtility.CSVUtility.ToCSV(reestr, fileName);
+
+            reestr.Dispose();
+        }
         static void ReportR08 (DataTable inTable, string fileName)
         {
             DataTable reestr = new DataTable();
@@ -97,7 +332,7 @@ namespace BSTReportPrep
             column.DataType = System.Type.GetType("System.String");
             column.ColumnName = "PremisesPart";
             column.AllowDBNull = true;
-            column.DefaultValue = "";
+            column.DefaultValue = "0";
             reestr.Columns.Add(column);
 
             //6. AccountNum (Номер ЛС (ФЛС))
@@ -263,7 +498,7 @@ namespace BSTReportPrep
             //26. AddrDelivDescr (Описание адреса доставки из дополнительных параметров ЛС)
             column = new DataColumn();
             column.DataType = System.Type.GetType("System.String");
-            column.ColumnName = "AddrDevilDescr";
+            column.ColumnName = "AddrDelivDescr";
             column.AllowDBNull = true;
             column.DefaultValue = "";
             reestr.Columns.Add(column);
@@ -290,27 +525,37 @@ namespace BSTReportPrep
             //foreach (DataColumn col in inTable.Columns)
             //    Console.Write(col.ColumnName);
 
-            Console.WriteLine("Заполняем реестр");
+            Console.WriteLine("Заполняем реестр R08");
             foreach (DataRow row in inTable.Rows)
             {
                 reestrRow = reestr.NewRow();
                 reestrRow["StreetCode"] = row["StreetCode"];
-                reestrRow["BuildingNumber"] = row["BuildingNumber"];
+                reestrRow["BuildingNumber"] = Regex.Replace(row["BuildingNumber"].ToString(), @"^\d+\w{1}(?:.*)", m => m.Value.ToString().ToUpper());
                 reestrRow["PremisesNumber"] = row["PremisesNumber"];
                 reestrRow["AccountNum"] = row["AccountNum"];
                 reestrRow["BeginDate"] = row["BeginDate"];
                 reestrRow["CloseDate"] = row["CloseDate"];
-                reestrRow["Family"] = row["FIO"];
+                if (row["FIO"].ToString().Length > 150)
+                {
+                    string[] FIO = SplitFIO(row["FIO"].ToString());
+                    reestrRow["Family"] = FIO[0];
+                    reestrRow["Name"] = FIO[1];
+                }
+                else
+                    reestrRow["Family"] = row["FIO"];
                 reestrRow["INN"] = row["INN"];
                 reestrRow["KPP"] = row["KPP"];
                 reestrRow["CompanyName"] = row["CompanyName"];
-                reestrRow["TypePremises"] = row["TypePremises"];
+                if (row["TypePremises"].ToString() == "500301")
+                    reestrRow["TypePremises"] = "2";
+                else
+                    reestrRow["TypePremises"] = row["TypePremises"];
                 reestrRow["FormOfOwnership"] = row["FormOfOwnership"];
                 reestrRow["TotalArea"] = row["TotalArea"];
                 reestrRow["Comment"] = row["Comment"];
                 reestrRow["Deliver"] = row["Deliver"];
                 reestrRow["CloseReason"] = row["CloseReason"];
-                reestrRow["AddrDelivDescr"] = row["Adress"];
+                reestrRow["AddrDelivDescr"] = row["Address"];
 
                 reestr.Rows.Add(reestrRow);
             }
@@ -320,5 +565,45 @@ namespace BSTReportPrep
             reestr.Dispose();
         }
 
+        static string[] SplitFIO (string fio)
+        {
+
+            //Console.WriteLine(row["AccountNum"].ToString() + "  " + row["FIO"].ToString().Length);
+            var words = fio.ToString().Split(new Char[] { ' ' });
+            int maxLengthString = 150;
+            int wordIndex = 0;          
+            string[] splitFIO = new string[3];
+            string spaceLetter = " ";
+            StringBuilder currentLine = new StringBuilder();
+            foreach (string word in words)
+            {
+                if (currentLine.Length + word.Length + 1 > maxLengthString)// Определяем не привысила ли текущая строка максимальную длину
+                {
+
+                    splitFIO[wordIndex] = currentLine.ToString();
+                    currentLine.Remove(0, currentLine.Length);
+                    wordIndex++;
+                    maxLengthString = 20;
+                }
+                else
+                {
+                    currentLine.Append(word);
+                    currentLine.Append(spaceLetter);                                     
+                }
+            }
+            //wordIndex++;
+            //splitFIO[wordIndex] = currentLine.ToString();
+            return splitFIO;
+
+        }
+
+        static string FixSum (string sum)
+        {
+            string fixSum;
+            fixSum = Regex.Replace(sum, @"^,(\d+)", "0.$1");           
+            fixSum = Regex.Replace(sum, ",", ".");
+            
+            return fixSum;
+        }
     }
 }
