@@ -44,6 +44,9 @@ namespace BSTReportPrep
                     case "16P":
                         ReportR16P(CSVtable, outFile);
                         break;
+                    case "22":
+                        ReportR22(CSVtable, outFile);
+                        break;
                     default:
                         CSVUtility.CSVUtility.ToCSV(CSVtable, outFile);
                         break;
@@ -633,7 +636,7 @@ namespace BSTReportPrep
             column.DefaultValue = "0.00";
             reestr.Columns.Add(column);
 
-            //7. LastPayDate (Номер ЛС)
+            //7. LastPayDate (Дата оплаты)
             column = new DataColumn();
             column.DataType = System.Type.GetType("System.String");
             column.ColumnName = "LastPayDate";
@@ -684,6 +687,91 @@ namespace BSTReportPrep
             reestr.Dispose();
         }
 
+        static void ReportR22(DataTable inTable, string fileName)
+        {
+            DataTable reestr = new DataTable();
+            DataColumn column;
+            DataRow reestrRow;
+
+            string header = "#RTYPE=R22\n"
+                            + "\n"
+                            + "#AccountOperator;AccountNum;ServiceCode;PayOffSum;PayOffFineSum;PayOffDate;ByReason";
+
+            #region Задаем структуру таблицы reestr
+            //1. AccountOperator (ИНН оператора ЛС)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "AccountOperator";
+            column.AllowDBNull = true;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            //2. AccountNum (Номер ЛС)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "AccountNum";
+            column.AllowDBNull = false;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            //3. ServiceCode (Услуга)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "ServiceCode";
+            column.AllowDBNull = false;
+            column.DefaultValue = "22";
+            reestr.Columns.Add(column);
+
+            //4. PayOffSum (Сумма списания по основному долгу)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "PayOffSum";
+            column.AllowDBNull = false;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            //5. PayOffFineSum (Сумма списания оплат по пени)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "PayOffFineSum";
+            column.AllowDBNull = false;
+            column.DefaultValue = "0.00";
+            reestr.Columns.Add(column);
+
+            //6. PayOffDate (Дата списания оплаты)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "PayOffDate";
+            column.AllowDBNull = false;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            //7. ByReason (Основание списания оплат)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "ByReason";
+            column.AllowDBNull = true;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            #endregion
+
+            Console.WriteLine("Заполняем реестр R22");
+            foreach (DataRow row in inTable.Rows)
+            {
+                reestrRow = reestr.NewRow();
+                reestrRow["AccountNum"] = row["AccountNum"];
+                reestrRow["PayOffSum"] = FixSum(row["PayOffSum"].ToString());
+                reestrRow["PayOffDate"] = row["PayOffDate"];
+                reestrRow["ByReason"] = row["ByReason"];
+
+                reestr.Rows.Add(reestrRow);
+            }
+            CSVUtility.CSVUtility.ToCSV(reestr, fileName, header);
+
+            reestr.Dispose();
+        }
+
         static string[] SplitFIO (string fio)
         {
 
@@ -719,7 +807,7 @@ namespace BSTReportPrep
         static string FixSum (string sum)
         {
             string fixSum;
-            fixSum = Regex.Replace(sum, @"(?:^(,|\.){1})(\d+)", "0.$2");           
+            fixSum = Regex.Replace(sum, @"(?:^(-?)(,|\.){1})(\d+)", "${1}0.$3");           
             fixSum = Regex.Replace(fixSum, ",", ".");
             
             return fixSum;
