@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Configuration;
 using System.Data;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -77,6 +78,9 @@ namespace BSTReportPrep
             DataTable reestr = new DataTable();
             DataColumn column;
             DataRow reestrRow;
+            NumberFormatInfo provider = new NumberFormatInfo();
+            provider.NumberDecimalSeparator = ".";
+
             string header = "#RTYPE=R16\n"
                             +"\n"
                             +"#AccountOperator;AccountNum;ServiceCode;ProviderCode;ChargeYear;ChargeMonth;SaldoIn;ChargeVolume;"
@@ -279,9 +283,11 @@ namespace BSTReportPrep
             #endregion 
 
             Console.WriteLine("Заполняем реестр R16");
+            decimal saldoOut;
             foreach (DataRow row in inTable.Rows)
             {
                 reestrRow = reestr.NewRow();
+                saldoOut = 0;
                 reestrRow["AccountNum"] = row["AccountNum"];
                 reestrRow["ChargeYear"] = row["ChargeYear"];
                 reestrRow["ChargeMonth"] = row["ChargeMonth"];
@@ -290,10 +296,13 @@ namespace BSTReportPrep
                 reestrRow["Tarif"] = FixSum(row["Tarif"].ToString());
                 reestrRow["ChargeSum"] = FixSum(row["ChargeSum"].ToString());
                 reestrRow["RecalSum"] = FixSum(row["RecalSum"].ToString());
-                reestrRow["SaldoOut"] = FixSum(row["SaldoOut"].ToString());
+                saldoOut = System.Convert.ToDecimal(reestrRow["SaldoIn"],provider)
+                         + System.Convert.ToDecimal(reestrRow["ChargeSum"],provider)
+                         + System.Convert.ToDecimal(reestrRow["RecalSum"],provider);
+                reestrRow["SaldoOut"] = FixSum(saldoOut.ToString());               
                 reestrRow["LastPayDate"] = row["LastPayDate"].ToString();
 
-                reestr.Rows.Add(reestrRow);
+                reestr.Rows.Add(reestrRow);                
             }
             CSVUtility.CSVUtility.ToCSV(reestr, fileName, header);
 
