@@ -32,8 +32,8 @@ namespace BSTReportPrep
                 
                 switch (repType)
                 {
-                    case "0":
-                        CSVUtility.CSVUtility.ToCSV(CSVtable, outFile);
+                    case "00":
+                        ReportR00(CSVtable, outFile);
                         break;
                     case "08":
                         ReportR08(CSVtable, outFile);
@@ -770,6 +770,108 @@ namespace BSTReportPrep
             CSVUtility.CSVUtility.ToCSV(reestr, fileName, header);
 
             reestr.Dispose();
+        }
+
+        static void ReportR00(DataTable inTable, string fileName)
+        {
+            DataTable reestr = new DataTable();
+            DataColumn column;
+            DataRow reestrRow;
+
+            #region Задаем структуру таблицы reestr
+            //1. NN (Порядковый номер)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "NN";
+            column.AllowDBNull = false;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            //2. AccountNum (Номер ЛС)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "AccountNum";
+            column.AllowDBNull = false;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            //3. ChargeYear (Отчетный год)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "ChargeYear";
+            column.AllowDBNull = false;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            //4. ChargeMonth (Отчетный месяц)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "ChargeMonth";
+            column.AllowDBNull = false;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            //5. SaldoIn (Входящее сальдо)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "SaldoIn";
+            column.AllowDBNull = false;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            //6. ChargeSum (Фактическое начисление)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "ChargeSum";
+            column.AllowDBNull = false;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            //7. PaySum (Фактическая оплата)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "PaySum";
+            column.AllowDBNull = false;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            //8. CorSaldoSum (Сумма корректировки сальдо)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "CorSaldoSum";
+            column.AllowDBNull = false;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            //9. SaldoOut (Исходящее сальдо)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "SaldoOut";
+            column.AllowDBNull = false;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            #endregion Задаем структуру таблицы reestr
+
+            Console.WriteLine("Заполняем реестр для сверки");
+            foreach (DataRow row in inTable.Rows)
+            {
+                reestrRow = reestr.NewRow();
+                reestrRow["NN"] = row["NN"];
+                reestrRow["AccountNum"] = row["AccountNum"];
+                reestrRow["ChargeYear"] = row["ChargeYear"];
+                reestrRow["ChargeMonth"] = row["ChargeMonth"];
+                reestrRow["SaldoIn"] = FixSum(row["SaldoIn"].ToString());
+                reestrRow["ChargeSum"] = FixSum(row["ChargeSum"].ToString());
+                reestrRow["PaySum"] = FixSum(row["PaySum"].ToString());
+                reestrRow["CorSaldoSum"] = FixSum(row["CorSaldoSum"].ToString());
+                reestrRow["SaldoOut"] = FixSum(row["SaldoOut"].ToString());
+                reestr.Rows.Add(reestrRow);
+            }
+            CSVUtility.CSVUtility.ToCSV(reestr, fileName);
+
+            reestr.Dispose();
+
         }
 
         static string[] SplitFIO (string fio)

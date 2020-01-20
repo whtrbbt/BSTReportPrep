@@ -198,7 +198,13 @@ namespace CSVUtility
                         sw.WriteLine(line);
                         while ((line = sr.ReadLine()) != null)
                         {
+                            if (line.StartsWith("eof"))
+                                break;
+                            //if (Regex.IsMatch(line, "^eof\b"))
+                            //    break;
+
                             line = ANSItoUTF(line);
+                            
                             if (line.StartsWith("~"))
                             {
                                 line = Regex.Replace(line, "~", "");
