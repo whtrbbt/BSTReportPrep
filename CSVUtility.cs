@@ -198,10 +198,10 @@ namespace CSVUtility
                         sw.WriteLine(line);
                         while ((line = sr.ReadLine()) != null)
                         {
-                            if (line.StartsWith("eof"))
-                                break;
-                            //if (Regex.IsMatch(line, "^eof\b"))
+                            //if (line.StartsWith("eof"))
                             //    break;
+                            if (Regex.IsMatch(line, @"^(?:eof\b)"))
+                                break;
 
                             line = ANSItoUTF(line);
                             

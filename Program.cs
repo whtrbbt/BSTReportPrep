@@ -284,10 +284,12 @@ namespace BSTReportPrep
 
             Console.WriteLine("Заполняем реестр R16");
             decimal saldoOut;
+            decimal recalc;
             foreach (DataRow row in inTable.Rows)
             {
                 reestrRow = reestr.NewRow();
                 saldoOut = 0;
+                recalc = 0;
                 reestrRow["AccountNum"] = row["AccountNum"];
                 reestrRow["ChargeYear"] = row["ChargeYear"];
                 reestrRow["ChargeMonth"] = row["ChargeMonth"];
@@ -295,10 +297,18 @@ namespace BSTReportPrep
                 reestrRow["ChargeVolume"] = FixSum(row["ChargeVolume"].ToString());
                 reestrRow["Tarif"] = FixSum(row["Tarif"].ToString());
                 reestrRow["ChargeSum"] = FixSum(row["ChargeSum"].ToString());
-                reestrRow["RecalSum"] = FixSum(row["RecalSum"].ToString());
-                saldoOut = System.Convert.ToDecimal(reestrRow["SaldoIn"],provider)
-                         + System.Convert.ToDecimal(reestrRow["ChargeSum"],provider)
-                         + System.Convert.ToDecimal(reestrRow["RecalSum"],provider);
+                
+                //Суммируем корректировки и перерасчеты
+                
+                recalc = System.Convert.ToDecimal(FixSum(row["CorSaldoSum"].ToString()),provider)
+                       + System.Convert.ToDecimal(FixSum(row["RecalSum"].ToString()),provider);
+                reestrRow["RecalSum"] = FixSum(recalc.ToString());
+                
+                //Считаем исходящее сальдо
+                saldoOut = System.Convert.ToDecimal(reestrRow["SaldoIn"], provider)
+                         + System.Convert.ToDecimal(reestrRow["ChargeSum"], provider)
+                         + recalc;
+                         //+ System.Convert.ToDecimal(reestrRow["RecalSum"],provider);
                 reestrRow["SaldoOut"] = FixSum(saldoOut.ToString());               
                 reestrRow["LastPayDate"] = row["LastPayDate"].ToString();
 
@@ -669,7 +679,15 @@ namespace BSTReportPrep
             column.DefaultValue = "";
             reestr.Columns.Add(column);
 
-            //10. Комментарии (Comment)
+            //10. SpecAccount (Номер счета)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "SpecAccount";
+            column.AllowDBNull = false;
+            column.DefaultValue = "";
+            reestr.Columns.Add(column);
+
+            //11. Комментарии (Comment)
             column = new DataColumn();
             column.DataType = System.Type.GetType("System.String");
             column.ColumnName = "Comment";
@@ -680,14 +698,16 @@ namespace BSTReportPrep
             #endregion
 
             Console.WriteLine("Заполняем реестр R16P");
+            
             foreach (DataRow row in inTable.Rows)
             {
                 reestrRow = reestr.NewRow();
                 reestrRow["AccountNum"] = row["AccountNum"];
                 reestrRow["PaySum"] = FixSum(row["PaySum"].ToString());
                 reestrRow["LastPayDate"] = row["PayDate"];
-                reestrRow["PayID"] = row["PayDocId"];
+                reestrRow["PayID"] = row["PayDocId"];               
                 reestrRow["Comment"] = row["ByReason"];
+                reestrRow["SpecAccount"] = row["AccountNumber"];
 
                 reestr.Rows.Add(reestrRow);
             }
@@ -786,6 +806,8 @@ namespace BSTReportPrep
             DataTable reestr = new DataTable();
             DataColumn column;
             DataRow reestrRow;
+            NumberFormatInfo provider = new NumberFormatInfo();
+            provider.NumberDecimalSeparator = ".";
 
             #region Задаем структуру таблицы reestr
             //1. NN (Порядковый номер)
@@ -844,13 +866,13 @@ namespace BSTReportPrep
             column.DefaultValue = "";
             reestr.Columns.Add(column);
 
-            //8. CorSaldoSum (Сумма корректировки сальдо)
-            column = new DataColumn();
-            column.DataType = System.Type.GetType("System.String");
-            column.ColumnName = "CorSaldoSum";
-            column.AllowDBNull = false;
-            column.DefaultValue = "";
-            reestr.Columns.Add(column);
+            ////8. CorSaldoSum (Сумма корректировки сальдо)
+            //column = new DataColumn();
+            //column.DataType = System.Type.GetType("System.String");
+            //column.ColumnName = "CorSaldoSum";
+            //column.AllowDBNull = false;
+            //column.DefaultValue = "";
+            //reestr.Columns.Add(column);
 
             //9. SaldoOut (Исходящее сальдо)
             column = new DataColumn();
@@ -863,17 +885,24 @@ namespace BSTReportPrep
             #endregion Задаем структуру таблицы reestr
 
             Console.WriteLine("Заполняем реестр для сверки");
+
+            decimal chargeSum;
+            
             foreach (DataRow row in inTable.Rows)
             {
+                chargeSum = 0;
                 reestrRow = reestr.NewRow();
                 reestrRow["NN"] = row["NN"];
                 reestrRow["AccountNum"] = row["AccountNum"];
                 reestrRow["ChargeYear"] = row["ChargeYear"];
                 reestrRow["ChargeMonth"] = row["ChargeMonth"];
                 reestrRow["SaldoIn"] = FixSum(row["SaldoIn"].ToString());
-                reestrRow["ChargeSum"] = FixSum(row["ChargeSum"].ToString());
+                // прибавляем корректировку сальдо к начислениям
+                chargeSum = System.Convert.ToDecimal(FixSum(row["ChargeSum"].ToString()), provider)
+                          + System.Convert.ToDecimal(FixSum(row["CorSaldoSum"].ToString()), provider);
+                reestrRow["ChargeSum"] = FixSum(chargeSum.ToString());
                 reestrRow["PaySum"] = FixSum(row["PaySum"].ToString());
-                reestrRow["CorSaldoSum"] = FixSum(row["CorSaldoSum"].ToString());
+                //reestrRow["CorSaldoSum"] = FixSum(row["CorSaldoSum"].ToString());
                 reestrRow["SaldoOut"] = FixSum(row["SaldoOut"].ToString());
                 reestr.Rows.Add(reestrRow);
             }
@@ -918,7 +947,11 @@ namespace BSTReportPrep
         static string FixSum (string sum)
         {
             string fixSum;
-            fixSum = Regex.Replace(sum, @"(?:^(-?)(,|\.){1})(\d+)", "${1}0.$3");           
+            if (sum == "")
+                fixSum = "0";
+            else
+                fixSum = sum;
+            fixSum = Regex.Replace(fixSum, @"(?:^(-?)(,|\.){1})(\d+)", "${1}0.$3");           
             fixSum = Regex.Replace(fixSum, ",", ".");
             
             return fixSum;
