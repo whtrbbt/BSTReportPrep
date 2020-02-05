@@ -14,7 +14,11 @@ namespace CSVUtility
         public static void ToCSV(this DataTable dtDataTable, string strFilePath, string header = null)
         //Сохраняем DataTable в CSV файл
         {
-            StreamWriter sw = new StreamWriter(strFilePath, false, Encoding.Unicode);
+            string ext = ".csv";
+            string filePath;
+            filePath = Path.ChangeExtension(strFilePath, ext);
+
+            StreamWriter sw = new StreamWriter(filePath, false, Encoding.Unicode);
             
 
             //Паттерн для поиска разделителя в полях таблицы

@@ -5,8 +5,8 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
-
-
+using System.Linq;
+using System.Collections.Generic;
 
 namespace BSTReportPrep
 {
@@ -75,10 +75,19 @@ namespace BSTReportPrep
 
         static void ReportR16 (DataTable inTable, string fileName)
         {
-            DataTable reestr = new DataTable();
+            DataTable reestr = new DataTable();   //Итоговые данные после всех обработок для заполнения реестра
+            DataTable summ = new DataTable();     //Содержит суммы начислений в числовом формате
+            //DataTable nachData = new DataTable(); //Содежит остальную информацию по начислениям
             DataColumn column;
             DataRow reestrRow;
+            DataRow summRow;
+            //DataRow tempRow;
+            decimal saldoOut; //Исходящее сальдо
+            decimal recalc; //Сумма перерасчетов
             NumberFormatInfo provider = new NumberFormatInfo();
+            int b;
+            b = inTable.Rows.Count;
+            Console.WriteLine("Количество строк:" + b);
             provider.NumberDecimalSeparator = ".";
 
             string header = "#RTYPE=R16\n"
@@ -86,6 +95,57 @@ namespace BSTReportPrep
                             +"#AccountOperator;AccountNum;ServiceCode;ProviderCode;ChargeYear;ChargeMonth;SaldoIn;ChargeVolume;"
                             +"Tarif;ChargeSum;RecalSum;PaySum;SaldoOut;SaldoFineIn;FineSum;PayFineSum;CorrectFineSum;SaldoFineOut;"
                             +"LastPayDate;PayAgent;PrivChargeSum;PrivRecalSum;PrivCategory;PrivPaySum";
+
+            #region Задаем структуру таблицы summ
+            //1. Account Num (Номер ЛС)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.String");
+            column.ColumnName = "AccountNum";
+            column.AllowDBNull = false;
+            column.DefaultValue = "";
+            summ.Columns.Add(column);
+
+            //2. SaldoIn (Остаток задолженности по взносам на начало отчетного месяца)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.Decimal");
+            column.ColumnName = "SaldoIn";
+            column.AllowDBNull = false;
+            column.DefaultValue = "0";
+            summ.Columns.Add(column);
+
+            //3. ChargeSum (Сумма начисления в отчетном месяце)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.Decimal");
+            column.ColumnName = "ChargeSum";
+            column.AllowDBNull = false;
+            column.DefaultValue = "0";
+            summ.Columns.Add(column);
+
+            //4. RecalcSum (Сумма перерасчета в отчетном месяц)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.Decimal");
+            column.ColumnName = "RecalcSum";
+            column.AllowDBNull = false;
+            column.DefaultValue = "0";
+            summ.Columns.Add(column);
+
+            //5. Tarif (Тариф)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.Decimal");
+            column.ColumnName = "Tarif";
+            column.AllowDBNull = false;
+            column.DefaultValue = "0";
+            summ.Columns.Add(column);
+
+            //6. ChargeVolume (Площадь помещения)
+            column = new DataColumn();
+            column.DataType = System.Type.GetType("System.Decimal");
+            column.ColumnName = "ChargeVolume";
+            column.AllowDBNull = false;
+            column.DefaultValue = "0";
+            summ.Columns.Add(column);
+
+            #endregion
 
             #region Задаем структуру таблицы reestr
             //1. AccountOperator (ИНН оператора ЛС)
@@ -280,43 +340,225 @@ namespace BSTReportPrep
             column.DefaultValue = "";
             reestr.Columns.Add(column);
 
-            #endregion 
+            #endregion
+
+            #region Задаем структуру таблицы nachData
+
+            ////1. AccountOperator (ИНН оператора ЛС)
+            //column = new DataColumn();
+            //column.DataType = System.Type.GetType("System.String");
+            //column.ColumnName = "AccountOperator";
+            //column.AllowDBNull = true;
+            //column.DefaultValue = "";
+            //nachData.Columns.Add(column);
+
+            ////2. Account Num (Номер ЛС)
+            //column = new DataColumn();
+            //column.DataType = System.Type.GetType("System.String");
+            //column.ColumnName = "AccountNum";
+            //column.AllowDBNull = false;
+            //column.DefaultValue = "";
+            //nachData.Columns.Add(column);
+
+            ////3. ServiceCode (Услуга)
+            //column = new DataColumn();
+            //column.DataType = System.Type.GetType("System.String");
+            //column.ColumnName = "ServiceCode";
+            //column.AllowDBNull = false;
+            //column.DefaultValue = "22";
+            //nachData.Columns.Add(column);
+
+            ////4. ProviderCode (ИНН поставщика услуг)
+            //column = new DataColumn();
+            //column.DataType = System.Type.GetType("System.String");
+            //column.ColumnName = "ProviderCode";
+            //column.AllowDBNull = false;
+            //column.DefaultValue = "5190996259";
+            //nachData.Columns.Add(column);
+
+            ////5. ChargeYear (Год отчетного периода)
+            //column = new DataColumn();
+            //column.DataType = System.Type.GetType("System.String");
+            //column.ColumnName = "ChargeYear";
+            //column.AllowDBNull = false;
+            //column.DefaultValue = "";
+            //nachData.Columns.Add(column);
+
+            ////6. ChargeMonth (Отчетный месяц)
+            //column = new DataColumn();
+            //column.DataType = System.Type.GetType("System.String");
+            //column.ColumnName = "ChargeMonth";
+            //column.AllowDBNull = false;
+            //column.DefaultValue = "";
+            //nachData.Columns.Add(column);
+
+            ////7. LastPayDate (Дата последней оплаты)
+            //column = new DataColumn();
+            //column.DataType = System.Type.GetType("System.String");
+            //column.ColumnName = "LastPayDate";
+            //column.AllowDBNull = false;
+            //column.DefaultValue = "";
+            //nachData.Columns.Add(column);
+
+            #endregion
 
             Console.WriteLine("Заполняем реестр R16");
-            decimal saldoOut;
-            decimal recalc;
+
+            #region Выбираем суммы начислений, суммируем и складываем в tempSumm
+            // заполняем таблицу summ
             foreach (DataRow row in inTable.Rows)
+            {
+                summRow = summ.NewRow();
+                recalc = 0;
+
+                summRow["AccountNum"] = row["AccountNum"];
+                summRow["SaldoIn"] = System.Convert.ToDecimal(FixSum(row["SaldoIn"].ToString()), provider);
+                summRow["ChargeSum"] = System.Convert.ToDecimal(FixSum(row["ChargeSum"].ToString()), provider);
+                summRow["Tarif"] = System.Convert.ToDecimal(FixSum(row["Tarif"].ToString()), provider);
+                summRow["ChargeVolume"] = System.Convert.ToDecimal(FixSum(row["ChargeVolume"].ToString()), provider);
+
+                //Суммируем корректировки и перерасчеты
+                recalc = System.Convert.ToDecimal(FixSum(row["CorSaldoSum"].ToString()), provider)
+                       + System.Convert.ToDecimal(FixSum(row["RecalSum"].ToString()), provider);
+                summRow["RecalcSum"] = recalc;
+
+                summ.Rows.Add(summRow);
+
+            }
+            
+            //Приводим информцию по начислениям к одной строке по каждому ЛС путем суммирования
+            var summQuery = from sum in summ.AsEnumerable().Distinct()
+                        //where sum.Field<string>("AccountNum") == accNum
+                        group sum by sum.Field<string>("AccountNum") into grouped
+                        select new
+                        {                            
+                            AccNum = grouped.Key,
+                            SaldoSum = grouped.Sum(g => g.Field<decimal>("SaldoIn")),
+                            ChargeSum = grouped.Sum(g => g.Field<decimal>("ChargeSum")),
+                            RecalcSum = grouped.Sum(g => g.Field<decimal>("RecalcSum")),
+                            TarifSum = grouped.Sum(g => g.Field<decimal>("Tarif")),
+                            ChargeVolume = grouped.Max(g => g.Field<decimal>("ChargeVolume")) //Если площадей в начислениях по ФЛС несколько выбираем наибольшую
+                        };
+            
+            ////Переносим результат во временную таблицу
+            //DataTable tempSumm = new DataTable();
+            //tempSumm = summ.Clone();
+
+            //foreach (var q in summQuery)
+            //{
+            //    tempRow = tempSumm.NewRow();
+            //    tempRow["AccountNum"] = q.AccNum;
+            //    tempRow["SaldoIn"] = q.SaldoSum;
+            //    tempRow["ChargeSum"] = q.ChargeSum;
+            //    tempRow["RecalcSum"] = q.RecalcSum;
+            //    tempRow["Tarif"] = q.TarifSum;
+            //    tempRow["ChargeVolume"] = q.ChargeVolume;
+            //    tempSumm.Rows.Add(tempRow);
+            //}
+            #endregion
+
+            #region Выбираем остальную информацию по начислениям и складываем в nachData
+
+            // Убираем дубликаты
+            var nachQuerry = from n in inTable.AsEnumerable().Distinct()
+                             select new
+                             {
+                                 AccountNum = n.Field<string>("AccountNum"),
+                                 ChargeYear = n.Field<string>("ChargeYear"),
+                                 ChargeMonth = n.Field<string>("ChargeMonth"),
+                                 LastPayDate = n.Field<string>("LastPayDate")
+                             };
+
+
+            //foreach (var nq in nachQuerry)
+            //{
+            //    tempRow = nachData.NewRow();
+            //    tempRow["AccountNum"] = nq.AccountNum;
+            //    tempRow["ChargeYear"] = nq.ChargeYear;
+            //    tempRow["ChargeMonth"] = nq.ChargeMonth;
+            //    tempRow["LastPayDate"] = nq.LastPayDate;
+            //    nachData.Rows.Add(tempRow);
+            //}
+            #endregion
+
+            var reestrQuery = from s in summQuery
+                              join n in nachQuerry on s.AccNum equals n.AccountNum
+                              select new
+                              {
+                                  AccountNum = s.AccNum,
+                                  n.ChargeYear,
+                                  n.ChargeMonth,
+                                  s.SaldoSum,
+                                  s.ChargeSum,
+                                  s.ChargeVolume,
+                                  s.TarifSum,
+                                  s.RecalcSum,
+                                  n.LastPayDate
+                              };
+
+            foreach (var rq in reestrQuery.Distinct())
             {
                 reestrRow = reestr.NewRow();
                 saldoOut = 0;
-                recalc = 0;
-                reestrRow["AccountNum"] = row["AccountNum"];
-                reestrRow["ChargeYear"] = row["ChargeYear"];
-                reestrRow["ChargeMonth"] = row["ChargeMonth"];
-                reestrRow["SaldoIn"] = FixSum (row["SaldoIn"].ToString());
-                reestrRow["ChargeVolume"] = FixSum(row["ChargeVolume"].ToString());
-                reestrRow["Tarif"] = FixSum(row["Tarif"].ToString());
-                reestrRow["ChargeSum"] = FixSum(row["ChargeSum"].ToString());
-                
-                //Суммируем корректировки и перерасчеты
-                
-                recalc = System.Convert.ToDecimal(FixSum(row["CorSaldoSum"].ToString()),provider)
-                       + System.Convert.ToDecimal(FixSum(row["RecalSum"].ToString()),provider);
-                reestrRow["RecalSum"] = FixSum(recalc.ToString());
-                
-                //Считаем исходящее сальдо
-                saldoOut = System.Convert.ToDecimal(reestrRow["SaldoIn"], provider)
-                         + System.Convert.ToDecimal(reestrRow["ChargeSum"], provider)
-                         + recalc;
-                         //+ System.Convert.ToDecimal(reestrRow["RecalSum"],provider);
-                reestrRow["SaldoOut"] = FixSum(saldoOut.ToString());               
-                reestrRow["LastPayDate"] = row["LastPayDate"].ToString();
-
-                reestr.Rows.Add(reestrRow);                
+                reestrRow["AccountNum"] = rq.AccountNum;
+                reestrRow["ChargeYear"] = rq.ChargeYear;
+                reestrRow["ChargeMonth"] = rq.ChargeMonth;
+                reestrRow["SaldoIn"] = FixSum(rq.SaldoSum.ToString());
+                reestrRow["ChargeSum"] = FixSum(rq.ChargeSum.ToString());
+                reestrRow["RecalSum"] = FixSum(rq.RecalcSum.ToString());
+                reestrRow["ChargeVolume"] = FixSum(rq.ChargeVolume.ToString());
+                reestrRow["Tarif"] = FixSum(rq.TarifSum.ToString());
+                saldoOut = rq.SaldoSum + rq.RecalcSum + rq.ChargeSum;
+                reestrRow["SaldoOut"] = FixSum(saldoOut.ToString());
+                reestrRow["LastPayDate"] = rq.LastPayDate.ToString();
+                reestr.Rows.Add(reestrRow);
             }
-            CSVUtility.CSVUtility.ToCSV(reestr, fileName, header);
 
+
+            //int rowNum = 1;
+            //foreach (DataRow row in inTable.Rows)
+            //{
+            //    rowNum++;
+            //    reestrRow = reestr.NewRow();
+            //    saldoOut = 0;
+            //    recalc = 0;
+            //    reestrRow["AccountNum"] = row["AccountNum"];
+            //    accNum = row["AccountNum"].ToString();
+            //    foreach (var q in summQuery)
+            //    {
+            //        reestrRow["SaldoIn"] =  FixSum(q.SaldoSum.ToString());
+            //        reestrRow["ChargeSum"] = FixSum(q.ChargeSum.ToString());
+            //        reestrRow["RecalSum"] = FixSum(q.RecalcSum.ToString());
+            //        break;
+            //    }
+            //    reestrRow["ChargeYear"] = row["ChargeYear"];
+            //    reestrRow["ChargeMonth"] = row["ChargeMonth"];
+            //    //reestrRow["SaldoIn"] = FixSum (summQuery.SaldoSum );
+            //    reestrRow["ChargeVolume"] = FixSum(row["ChargeVolume"].ToString());
+            //    reestrRow["Tarif"] = FixSum(row["Tarif"].ToString());
+            //    //reestrRow["ChargeSum"] = FixSum(row["ChargeSum"].ToString());
+                
+            //    //Суммируем корректировки и перерасчеты
+                
+            //    //recalc = System.Convert.ToDecimal(FixSum(row["CorSaldoSum"].ToString()),provider)
+            //    //       + System.Convert.ToDecimal(FixSum(row["RecalSum"].ToString()),provider);
+            //    //reestrRow["RecalSum"] = FixSum(recalc.ToString());
+                
+            //    //Считаем исходящее сальдо
+            //    saldoOut = System.Convert.ToDecimal(reestrRow["SaldoIn"], provider)
+            //             + System.Convert.ToDecimal(reestrRow["ChargeSum"], provider)
+            //             //+ recalc;
+            //             + System.Convert.ToDecimal(reestrRow["RecalSum"],provider);
+            //    reestrRow["SaldoOut"] = FixSum(saldoOut.ToString());               
+            //    reestrRow["LastPayDate"] = row["LastPayDate"].ToString();
+
+            //    reestr.Rows.Add(reestrRow);
+            //    if (rowNum%1000 == 0)
+            //        Console.WriteLine("Обработано " + rowNum + " строк");
+            //}
+            CSVUtility.CSVUtility.ToCSV(reestr, fileName, header);
             reestr.Dispose();
+            summ.Dispose();
         }
         static void ReportR08 (DataTable inTable, string fileName)
         {
