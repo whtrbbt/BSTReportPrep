@@ -21,8 +21,19 @@ namespace BSTReportPrep
             var dirIN = new DirectoryInfo(dirpathIN); // папка с файлами
             var dirOUT = new DirectoryInfo(dirpathOUT);
             DataTable CSVtable = new DataTable();
+            DataTable filterTable = new DataTable();
             string inFile = "";
             string outFile = "";
+            string filterFile = "";
+
+            //Обработка фильтра
+            if (ConfigurationManager.AppSettings.Get("FILTER") == "1")
+            {
+                Console.WriteLine("Внимание! Включена фильтрация!");
+                filterFile = ConfigurationManager.AppSettings.Get("FILTER_FILE");
+                filterTable = CSVUtility.CSVUtility.GetDataTableFromCSVFile(filterFile, ";", false);
+            }
+
 
             foreach (FileInfo file in dirIN.GetFiles())
             {
@@ -30,7 +41,10 @@ namespace BSTReportPrep
                 Console.WriteLine(inFile);
                 CSVtable = CSVUtility.CSVUtility.GetDataTableFromCSVFile(file.FullName); //Получаем DataTable из CSV файла
                 outFile = dirpathOUT + "\\" + inFile;
-                
+
+                if (filterFile != "")
+                    CSVtable = CSVUtility.CSVUtility.FilterReport(CSVtable, filterTable);
+
                 switch (repType)
                 {
                     case "00":

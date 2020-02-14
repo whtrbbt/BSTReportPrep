@@ -3,6 +3,7 @@ using System;
 using System.Data;
 using System.Data.SqlClient;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -18,7 +19,7 @@ namespace CSVUtility
             string filePath;
             filePath = Path.ChangeExtension(strFilePath, ext);
 
-            StreamWriter sw = new StreamWriter(filePath, false, Encoding.Unicode);
+            StreamWriter sw = new StreamWriter(filePath, false, Encoding.UTF8);
             
 
             //Паттерн для поиска разделителя в полях таблицы
@@ -77,13 +78,24 @@ namespace CSVUtility
             sw.Close();
         }
 
-        public static DataTable GetDataTableFromCSVFile(string csv_file_path)
+        public static DataTable GetDataTableFromCSVFile(string csv_file_path, string delim = "|", bool reformat = true)
         //Копируем данные из CSV в DataTable
         
         {
             
             Console.WriteLine(csv_file_path);
-            string tmpFile = CSVreformat(csv_file_path);
+            string tmpFile;
+
+
+            // проверяем необходимость преобразования входного файла
+            if (reformat)
+                tmpFile = CSVreformat(csv_file_path);
+            else
+            {
+                tmpFile = Path.GetTempFileName();           // создаем временный файл
+                File.Copy(csv_file_path, tmpFile, true);    // копируем в него содержимое входного файла
+                //tmpFile = csv_file_path;
+            }
             //string[] lines = System.IO.File.ReadAllLines(csv_file_path);
 
             //// Display the file contents by using a foreach loop.
@@ -97,9 +109,10 @@ namespace CSVUtility
             DataTable csvData = new DataTable();
             try
             {
-                using (TextFieldParser csvReader = new TextFieldParser(tmpFile, Encoding.GetEncoding(1251)))
+                //using (TextFieldParser csvReader = new TextFieldParser(tmpFile, Encoding.GetEncoding(1251)))
+                using (TextFieldParser csvReader = new TextFieldParser(tmpFile, Encoding.UTF8))
                 {
-                    csvReader.SetDelimiters(new string[] { "|" }); //Устанавливаем символ-разделитель
+                    csvReader.SetDelimiters(new string[] { delim }); //Устанавливаем символ-разделитель
                     csvReader.HasFieldsEnclosedInQuotes = false;
                     string[] colFields = csvReader.ReadFields();
                     Console.WriteLine("Количество столбцов: {0}", colFields.Length);
@@ -233,10 +246,28 @@ namespace CSVUtility
             catch (Exception e)
             {
                 // Let the user know what went wrong.
-                Console.WriteLine("The file could not be read:");
+                Console.WriteLine("Невозможно прочитать файл:");
                 Console.WriteLine(e.Message);
                 return null;
             }
+        }
+
+        public static DataTable FilterReport (DataTable inTable, DataTable filterTable)
+        //Фильтрует реестр по списку лицевых счетов AccountNum
+        {
+            DataTable outTable;            
+            outTable = inTable.Clone();
+            
+            var reestrRows = from rows in inTable.AsEnumerable()
+                             join f in filterTable.AsEnumerable() on rows.Field<string>("AccountNum") equals f.Field<string>("AccountNum")
+                             select rows;
+            
+            foreach (DataRow rr in reestrRows.Distinct())
+            {
+                outTable.ImportRow(rr);
+            }
+            
+            return outTable;
         }
     }
 
